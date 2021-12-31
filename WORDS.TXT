@@ -1,0 +1,257 @@
+					   DOS FORTH WORD REFERENCE
+
+
+CONTENTS
+
+1.	[STACK MANIPULATION]
+2.	[ARITHMETIC]
+3.	[DICTIONARY/MEMORY ACCESS]
+4.	[STRING MANIPULATION & INPUT]
+5.	[CONTROL FLOW & EXECUTION]
+6.	[VARIABLES]
+
+
+
+						  STACK MANIPULATION
+
+DUP ( A -- A A )
+
+2DUP ( A B -- A B A B )
+
+DROP ( A -- )
+
+SWAP ( A B -- B A )
+
+
+
+							  ARITHMETIC
+
++ ( A B -- A+B )
+
+- (A B -- A-B )
+
++1 (A -- A+1 )
+
++2 (A -- A+2 )
+
+
+
+					   DICTIONARY/MEMORY ACCESS
+
+FIND ( ADDRESS LENGTH -- ENTRY )
+
+	Search through the dictionary for a word with the given
+	name. Address and name together make up a string.
+
+	ENTRY = address of the matching dictionary entry if one was found,
+	0 otherwise.
+
+
+>CFA ( BASE -- ADDRESS )
+
+	ADDRESS = the address of the codeword for the dictionary entry
+	starting at BASE.
+
+	SEE ALSO <README.TXT> Fig. 1: Dictionary entry
+
+
+>DFA ( BASE -- ADDRESS )
+
+	ADDRESS = the address of the first byte in the body of the
+	dictionary entry, i.e. the first byte after the codeword.
+
+	SEE ALSO >CFA, <README.TXT> Fig. 1: Dictionary entry
+
+
+@ ( ADDRESS -- VALUE )
+
+	VALUE = the cell at ADDRESS.
+
+
+! ( ADDRESS VALUE -- )
+
+	Sets the cell at ADDRESS to VALUE.
+
+
+C@ ( ADDRESS -- CHAR )
+
+	CHAR = the byte at ADDRESS.
+
+
+CREATE ( ADDR LENGTH -- )
+
+	Creates a new dictionary entry with the name specified by ADDR and
+	LENGTH. HERE and LATEST are updated accordingly.
+
+
+, ( VALUE -- )
+
+	Stores the cell VALUE at HERE, adds 2 to HERE (word size).
+
+	This does the same thing as
+	VALUE HERE @ ! HERE 2+ HERE !
+
+
+[ ( -- )
+
+	Switches to interpret mode. I.e. sets STATE to 0.
+
+
+] ( -- )
+
+	Switches to compile mode. I.e. sets STATE to 1.
+
+
+IMMEDIATE ( -- )
+
+	Toggles if the most recently defined word (the dictionary entry
+	pointed to by LATEST) is immediate.
+
+
+HIDDEN ( ENTRY -- )
+
+	Toggles if the dictionary entry starting at ENTRY is hidden.
+
+
+HIDE WORD ( -- )
+
+	Looks up WORD and toggles if it is hidden.
+
+	This could be defined as
+	: HIDE WORD FIND HIDDEN ;
+
+
+' WORD ( -- CFA )
+
+	Looks up WORD in the dictionary and returns its CFA. ' reads WORD
+	at runtime.
+
+
+					 STRING MANIPULATION & INPUT
+
+KEY ( -- CHAR )
+
+	Reads one character from the input. KEY blocks until a key press
+	if no input data is buffered.
+
+	CHAR = the character read.
+
+
+EMIT ( CHAR -- )
+
+	Writes the lower byte of CHAR as an ASCII character to standard
+	output.
+
+
+CR ( -- )
+
+	Write a carriage return followed by a line feed ('\r\n') to
+	standard output.
+
+
+TYPE ( ADDR LENGTH -- )
+
+	Writes the string starting at ADDR with length LENGTH to standard
+	output. The string does not need to be terminated with anything
+	and may contain any byte values.
+
+
+WORD ( -- ADDR LENGTH )
+
+	Reads a word from the input. Calls KEY internally.
+
+	ADDR = the address of the internal buffer holding the word. This
+	is overridden every time WORD is called, so copy the string if you
+	need it.
+
+	LENGTH = the length in bytes of the parsed word. The buffer holds
+	at most 32 bytes.
+
+
+NUMBER ( ADDR LENGTH -- NUMBER UNPARSED )
+
+	Parses the string specified by ADDR and LENGTH as a base-10
+	integer.
+
+	NUMBER = the parsed number, or 0 if one could not be parsed.
+
+	UNPARSED = the number of bytes in the string that could not be
+	parsed. I.e. 0 if everything parsed successfully, LENGTH if
+	nothing could be parsed.
+
+
+. ( NUMBER -- )
+
+	Write NUMBER as a base-10 integer to standard output.
+
+	For example: 123 .
+	123 ok
+
+
+LITSTRING LENGTH BYTES... ( -- ADDR LENGTH )
+
+	Compiles to a literal string. You should rarely have to use this
+	manually.
+
+	LENGTH = the length of the string in bytes. 1 cell wide.
+
+	BYTES = the actual string, padded at the end to 2 bytes (1 cell).
+
+	ADDR = the address of the string.
+
+	LENGTH = the length of the string.
+
+
+
+					   CONTROL FLOW & EXECUTION
+
+BRANCH BYTES ( -- )
+
+	Branches BYTES bytes forwards or backwards, depending on the
+	sign. BRANCH 0 does nothing, BRANCH 2 skips the following word,
+	BRANCH -4 causes an infinite loop.
+
+
+0BRANCH BYTES ( PREDICATE -- )
+
+	Identical to BRANCH if PREDICATE is 0. Otherwise 0BRANCH does
+	nothing.
+
+
+EXECUTE ( CFA -- )
+
+	Transfers execution to the word defined by CFA. This can be used
+	with '.
+
+	SEE ALSO '
+
+	For example, ' DUP EXECUTE is identical to DUP
+
+
+BYE ( -- )
+
+	Quit FORTH.
+
+
+
+							  VARIABLES
+
+STATE
+
+	The current interpreter state.
+
+	0 = Interpret
+	1 = Compile
+
+
+HERE
+
+	The address of the first free byte of the dictionary. This is
+	where newly compiled words are added.
+
+
+LATEST
+
+	The address of the dictionary for the most recently added word.
+
+	SEE ALSO <README.TXT> Fig. 1: Dictionary entry
