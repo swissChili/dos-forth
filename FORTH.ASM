@@ -33,8 +33,8 @@
 	%ENDMACRO
 
 
-	;; Used for the compile-time dictionary linked list. Not used at
-	;; runtime.
+	;; Used for the compile-time dictionary linked list. At runtime
+	;; LATEST is used instead
 	%DEFINE LINK 0
 
 
@@ -106,6 +106,7 @@ CODE_%1:
 VAR_%1:
 	%ENDMACRO
 
+
 	%MACRO DEFCONST 3
 	DEFWORD_RAW %1, %2
 	PUSH CONST_%1
@@ -114,19 +115,18 @@ VAR_%1:
 	%ENDMACRO
 
 
-	%MACRO INCLUDE_STRING 2
+	%MACRO INCLUDE_STRING 1
 	DW LITSTRING
-	DW STRINGLEN_%1
-.BEFORE_STRING_%1:
-	DB %2
-	STRINGLEN_%1 EQU $ - .BEFORE_STRING_%1
+	DW %%STRINGLEN
+%%BEFORE_STRING:
+	DB %1
+	%%STRINGLEN EQU $ - %%BEFORE_STRING
 	ALIGN WORDSZ
 	%ENDMACRO
 
 
-	;; TODO: This doesn't work for some reason
 	%MACRO RELATIVE_ADDRESS 1
-	DW (%1 - $)
+	DW (%1 - $ - 2)
 	%ENDMACRO
 
 
@@ -159,7 +159,7 @@ INTRAW:
 
 
 INDIRECT_START:	
-	DW SETUP 
+	DW SETUP
 	DW QUIT
 	DW BYE
 
@@ -192,7 +192,8 @@ TEST_PRINTING:
 	JMP DOT_INT
 	
 
-	DEFWORD_RAW BYE, 'BYE'
+	;; TODO: should not be immediate, that's just for debugging
+	DEFWORD_RAW_IMMEDIATE BYE, 'BYE'
 	FLUSH
 	QUIT_PROC
 
@@ -240,6 +241,29 @@ TEST_PRINTING:
 	NEXT
 
 
+	DEFWORD_RAW AND, 'AND'
+	POP AX
+	POP DX
+	AND AX, DX
+	PUSH AX
+	NEXT
+
+
+	DEFWORD_RAW XOR, 'XOR'
+	POP DX
+	POP AX
+	XOR AX, DX
+	PUSH AX
+	NEXT
+
+
+	DEFWORD_RAW NOT, 'NOT'
+	POP AX
+	NOT AX
+	PUSH AX
+	NEXT
+
+
 	DEFWORD_RAW ADD1, '1+'
 	POP AX
 	ADD AX, 1
@@ -271,9 +295,11 @@ TEST_PRINTING:
 ;;; LATE-INIT VARIABLES ;;;
 	DEFVAR STATE, 'STATE'
 	DW 0						; Interpret
+
 	
 	DEFVAR HERE, 'HERE'
 	DW HERE_START
+
 	
 	;; LATEST must be the last word defined in FORTH.ASM!
 	DEFVAR LATEST, 'LATEST'
@@ -284,5 +310,6 @@ TEST_PRINTING:
 	MSG DB 'DOS FORTH', 0Dh, 0Ah, '$'
 
 
+	ALIGN 4
 ;;; FREE DATA ;;;
 HERE_START:

@@ -106,43 +106,51 @@ WORD_MATCHES:
 	DW CFA, ADD2, EXIT
 
 
-	DEFWORD_RAW CREATE, 'CREATE'
-	POP CX 						; Length
-	POP BX						; String
-
-	CALL DO_CREATE
+	;; ( *a *b num -- )
+	;; Copy NUM bytes from A to B
+	DEFWORD_RAW CMOVE, 'CMOVE'
+	RSPUSH SI
+	POP CX
+	POP DI
+	POP SI
+	REP MOVSB
+	RSPOP SI
 	NEXT
 
-	;; CX = Length
-	;; BX = Address
-	;;
-	;; AX, BX, CX, DX, DI clobbered
-DO_CREATE:
-	PUSH SI 					; Save SI
 
-	MOV SI, BX
-	MOV DI, [VAR_HERE]			; Top of dictionary
-	MOV DX, DI					; New LATEST
+	;; ( a -- b )
+	;; Round up to even number
+	DEFWORD_RAW ROUND_EVEN, 'ROUND-EVEN'
+	POP AX
+	INC AX
+	AND AX, (~1)
+	PUSH AX
+	NEXT
 
-	MOV AX, [VAR_LATEST]
-	STOSW						; Link pointer
 
-	MOV AX, CX					; Length
-	STOSB
-
-	REP MOVSB					; Copy string
-
-	TEST DI, 1
-	JZ .DONE
-
-	INC DI						; Pad
-
-.DONE:
-	MOV [VAR_HERE], DI
-	MOV [VAR_LATEST], DX
-
+	DEFWORD_RAW CMOVE_HERE, 'CMOVE,'
+	POP CX
+	RSPUSH SI
 	POP SI
-	RET
+	MOV DI, [VAR_HERE]
+	REP MOVSB
+	MOV [VAR_HERE], DI
+	RSPOP SI
+	NEXT
+
+
+	DEFWORD_THREADED CREATE, 'CREATE'
+	DW HERE, GET				; ( *here )
+	DW _WORD					; ( *here *string length )
+	DW _2DUP, TYPE, SPACE		; ( *here *string length )
+	DW LATEST, GET				; ( *here *string length link )
+	DW COMMA, DUP, CHAR_COMMA	; ( *here *string length )
+	DW CMOVE_HERE				; ( *here )
+	DW HERE, GET				; ( *here *here[new] )
+	DW ROUND_EVEN				; ( here[new,even] )
+	DW HERE, SET				; ( *here )
+	DW LATEST, SET				; ( )
+	DW EXIT
 
 
 	DEFWORD_RAW COMMA, ','
@@ -153,18 +161,26 @@ DO_CREATE:
 	NEXT
 
 
+	DEFWORD_RAW CHAR_COMMA, 'C,'
+	POP AX
+	MOV DI, [VAR_HERE]
+	STOSB
+	MOV [VAR_HERE], DI
+	NEXT
+
+
 	;; Switch to interpret mode
 	DEFWORD_RAW_IMMEDIATE LEFTBRACKET, '['
 	MOV WORD [VAR_STATE], 0
 	NEXT
 
 
-	DEFWORD_RAW_IMMEDIATE RIGHTBRACKET, ']'
+	DEFWORD_RAW RIGHTBRACKET, ']'
 	MOV WORD [VAR_STATE], 1
 	NEXT
 
 
-	DEFWORD_RAW IMMEDIATE, 'IMMEDIATE'
+	DEFWORD_RAW_IMMEDIATE IMMEDIATE, 'IMMEDIATE'
 	MOV BX, [VAR_LATEST]
 	XOR BYTE [BX + 2], IMMEDIATE_BIT
 	NEXT
@@ -213,51 +229,76 @@ DO_CREATE:
 	NEXT
 
 
+	;; ( entry -- type )
+	;; 0 = immediate; 1 = normal
+	DEFWORD_THREADED GET_WORD_TYPE, 'WORD-TYPE'
+	DW LITERAL, 2, PLUS			; ( entry+2 )
+	DW GETCHAR					; ( length/flags )
+	DW LITERAL, IMMEDIATE_BIT	; ( length/flags IMMEDIATE_BIT )
+	DW AND						; ( 1=immediate;0=normal )
+	DW LITERAL, IMMEDIATE_BIT
+	DW XOR						; Toggle the bit
+	DW EXIT
+
+
 	DEFWORD_THREADED INTERPRET, 'INTERPRET'
 	DW _WORD					; ( addr len )
 	DW _2DUP, FIND				; ( addr len entry? )
 	DW DUP						; ( addr len entry? entry? )
-	DW ZEROBRANCH, 26			; ( addr len entry? ); jump to .NUM if
-								; the entry was not found.
+	DW ZEROBRANCH				; ( addr len entry? )
+	RELATIVE_ADDRESS .NUM		; FIND returned 0
 
-	DW CFA						; ( addr len cfa )
+	DW SWAP, DROP, SWAP, DROP	; ( entry )
+	DW DUP, CFA					; ( entry cfa )
 
-	DW SWAP, DROP				; ( addr cfa )
-	DW SWAP, DROP				; ( cfa )
-	DW STATE, GET				; ( cfa 0|1 )
+	DW SWAP						; ( cfa entry )
+	DW GET_WORD_TYPE			; ( cfa immediate? )
 
-	DW ZEROBRANCH, 4
+	DW STATE, GET				; ( cfa immediate? interpreting? )
+	;; In either case evaluate
+	DW ZEROBRANCH				; ( cfa immediate? )
+	RELATIVE_ADDRESS .WORD_IMMED
+	DW ZEROBRANCH				; ( cfa )
+	RELATIVE_ADDRESS .WORD_COMPILE_IMMED
+
+	;; Compile the word
 	DW COMMA					; Add to HERE
 	DW EXIT
 
-.WORD_IMMED:
+.WORD_COMPILE_IMMED:			; ( cfa )
+	INCLUDE_STRING 'immediate bit set'
+	DW TYPE, CR
+	DW EXECUTE, EXIT
+
+.WORD_IMMED:					; ( cfa immediate? )
+	DW DROP						; ( cfa )
 	DW EXECUTE					; ( )
 	DW EXIT
 
 .NUM:							; ( addr len 0 )
 	DW DROP						; ( addr len )
 	DW NUMBER					; ( number unparsed )
-	DW ZEROBRANCH, 4			; ( number ); jump to .NUMOK
+	DW ZEROBRANCH				; ( number )
+	RELATIVE_ADDRESS .NUMOK
 
-	DW BRANCH, 18				; jump to .FAILED
+	INCLUDE_STRING 'Word is neither defined nor a number'
+	DW TYPE, CR					; ( number )
+	DW DROP, EXIT 				; ( )
 
 .NUMOK:
 	;; ( number )
 	DW STATE, GET				; ( number STATE )
-	DW ZEROBRANCH, 8			; ( number )
+	DW ZEROBRANCH				; ( number )
+	RELATIVE_ADDRESS .NUM_IMMED
 
 	DW LITERAL, LITERAL			; ( number LITERAL )
 	DW COMMA, COMMA				; ( )
 
-.NUM_IMMED:						; ( number )
+.NUM_IMMED:						; ( number ) or ( )
 	DW EXIT
 
-.FAILED:						; ( number )
-	INCLUDE_STRING $, 'Word is neither defined nor a number'
-	DW TYPE, CR					; ( number )
-	DW DROP, EXIT 				; ( )
 
-
+	;; Jump to the word specified by the CFA on the stack
 	DEFWORD_RAW EXECUTE, 'EXECUTE'
 	POP AX
 	MOV BX, AX
@@ -266,12 +307,14 @@ DO_CREATE:
 
 	;; TODO: await newline
 	DEFWORD_THREADED QUIT, 'QUIT'
+.START:
 	DW INTERPRET
-	DW BRANCH, -6
+	DW BRANCH
+	RELATIVE_ADDRESS .START
 
 
 	DEFWORD_THREADED COLON, ':'
-	DW _WORD, CREATE
+	DW CREATE
 	DW LITERAL, DOCOL, COMMA
 	DW LATEST, GET, HIDDEN
 	DW RIGHTBRACKET
@@ -286,22 +329,28 @@ DO_CREATE:
 
 
 	;; ( *entry -- len *string )
-	DEFWORD_THREADED ENTRY_NAME, ''
+	DEFWORD_THREADED ENTRY_NAME, 'ENTRY->NAME'
 	DW DUP						; ( *entry *entry )
-	DW LITERAL, 2, PLUS			; ( *entry *len )
-	DW GETCHAR					; ( *entry len )
+	DW LITERAL, 2, PLUS			; ( *entry *len/flags )
+	DW GETCHAR					; ( *entry len/flags )
+	DW LITERAL, LENGTH_MASK, AND ; ( *entry len )
 	DW SWAP						; ( len *entry )
 	DW LITERAL, 3, PLUS			; ( len *string )
 	DW SWAP
 	DW EXIT
 
 
-	DEFWORD_THREADED SHOW_DICT, '.d'
+	DEFWORD_THREADED SHOW_DICT, 'WORDS'
 	DW LATEST, GET				; ( *entry )
+.LOOP:
 	DW DUP, ENTRY_NAME			; ( *entry len *string)
-	DW TYPE, CR					; ( *entry )
+	DW TYPE, SPACE				; ( *entry )
 	DW GET						; ( *prev-entry )
 	DW DUP						; ( *prev-entry *prev-entry )
-	DW ZEROBRANCH, 2
-	DW BRANCH, -24				; Back to start!
-	DW EXIT
+	DW ZEROBRANCH
+	RELATIVE_ADDRESS .DONE
+
+	DW BRANCH					; Back to start!
+	RELATIVE_ADDRESS .LOOP
+.DONE:
+	DW CR, EXIT
