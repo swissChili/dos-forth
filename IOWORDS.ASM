@@ -18,17 +18,6 @@
 	;; This routine returns the key in AL, but Forth wants it on the
 	;; stack, so we have a helper function.
 READ_KEY:
-	GETSTDINSTATUS
-	TEST AL, AL
-	JZ .EOF
-
-	READCIN
-	XOR AH, AH					; We get the result in AL but we want
-								; the whole word to be the correct
-								; char.
-	RET
-
-.EOF:							; End of STDIN
 	;; Check if line buffer is empty
 	READCIN
 	XOR AH, AH 					; We don't care about the scan code
@@ -90,6 +79,14 @@ READ_WORD:
 	PUSH WORD_BUFFER
 	PUSH DI
 
+	NEXT
+
+
+	DEFWORD_RAW_IMMEDIATE LPAREN, '('
+.LOOP:
+	CALL READ_KEY
+	CMP AL, ')'
+	JNE .LOOP
 	NEXT
 
 
@@ -166,6 +163,8 @@ TYPE_STRING:
 	;; ( n -- )
 	DEFWORD_RAW DOT, '.'
 	POP AX 						; The number
+	CALL DOT_INT
+	NEXT
 
 DOT_INT:	
 	TEST AX, AX
@@ -173,7 +172,7 @@ DOT_INT:
 
 	MOV DX, '0'
 	WRITECOUT
-	NEXT
+	RET
 	
 .START:
 	MOV BX, 10					; The base
@@ -202,11 +201,85 @@ DOT_INT:
 .END:
 	LOOP .REVERSE
 
+	RET
+
+
+	;; ( flags *start len )
+	DEFWORD_RAW OPEN_FILE_NAMED, 'OPEN-FILE-NAMED'
+	POP CX						; Length
+	POP BX						; Start
+	MOV DX, BX
+	ADD BX, CX
+	MOV BYTE [BX], 0
+	POP CX						; Flags
+	CREATF
+
+	MOV AX, CX					; Flags
+	OPENF
+
+	JC FILE_WRITE_ERROR
+	PUSH AX
+	NEXT
+
+FILE_WRITE_ERROR:
+	MOV DX, MSG_OPENF_FAILED
+	WRITESOUT
+	PUSH AX
+	NEXT
+
+
+	;; ( flags -- handle )
+	DEFWORD_THREADED OPEN_FILE, 'OPEN-FILE'
+	DW _WORD					; ( flags *str len )
+	DW OPEN_FILE_NAMED
+	DW EXIT
+
+
+	DEFWORD_RAW CLOSE_FILE, 'CLOSE-FILE'
+	POP BX
+	CLOSEF
+	NEXT
+
+
+	;; Write word to file
+	;; ( cell handle -- )
+	DEFWORD_RAW FILE_COMMA, 'F,'
+	POP BX						; Handle
+	POP DX						; Data
+	MOV WORD [FILE_WRITE_BUFFER], DX
+	MOV DX, FILE_WRITE_BUFFER	; Address
+	MOV CX, 2					; Length
+	WRITEF
+	JC FILE_WRITE_ERROR
+	NEXT
+
+
+	;;  ( byte handle -- )
+	DEFWORD_RAW FILE_CHAR_COMMA, 'FC,'
+	POP BX
+	POP DX
+	MOV BYTE [FILE_WRITE_BUFFER], DL
+	MOV DX, FILE_WRITE_BUFFER
+	MOV CX, 1
+	WRITEF
+	JC FILE_WRITE_ERROR
+	NEXT
+
+
+	;; ( *start *end handle -- )
+	DEFWORD_RAW FILE_WRITE_RANGE, 'FWRITE-RANGE'
+	POP BX
+	POP CX						; End
+	POP DX
+	SUB CX, DX					; Get difference
+	WRITEF
 	NEXT
 
 
 ;;; DATA ;;;
 	CRLF_MSG DB ASCII_RETURN, ASCII_NEWLINE, '$'
+	MSG_OPENF_FAILED DB 'File error', ASCII_RETURN, ASCII_NEWLINE, '$'
 
-	WORD_BUFFER TIMES 32 DB 0
+	WORD_BUFFER TIMES 33 DB 0
+	FILE_WRITE_BUFFER DW 0
 WORD_BUFFER_END:

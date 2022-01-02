@@ -1,5 +1,5 @@
 ;;; Dictionary manipulation & memory management words
-
+	
 	;; ( addr len -- entry? )
 	DEFWORD_RAW FIND, 'FIND'
 	POP CX						; String length
@@ -20,7 +20,7 @@
 	MOV BX, WORD [BX]			; Offset 0 = *LINK
 	TEST BX, BX
 	JNZ .LOOP					; If BX is 0 (end) fall through
-	
+
 .MATCH:
 	PUSH BX						; BX holds dict entry
 	NEXT
@@ -142,7 +142,6 @@ WORD_MATCHES:
 	DEFWORD_THREADED CREATE, 'CREATE'
 	DW HERE, GET				; ( *here )
 	DW _WORD					; ( *here *string length )
-	DW _2DUP, TYPE, SPACE		; ( *here *string length )
 	DW LATEST, GET				; ( *here *string length link )
 	DW COMMA, DUP, CHAR_COMMA	; ( *here *string length )
 	DW CMOVE_HERE				; ( *here )
@@ -354,3 +353,45 @@ WORD_MATCHES:
 	RELATIVE_ADDRESS .LOOP
 .DONE:
 	DW CR, EXIT
+
+
+	DEFWORD_RAW SHOW_STACK, '.S'
+	MOV CX, WORD [CONST_SP_INITIAL]
+	RSPUSH SI
+	STD							; Go backwards
+
+	MOV SI, CX					; Going down
+	SUB SI, 2					; Just below it
+	SUB CX, SP					; Number of bytes on the stack
+	JLE .DONE					; Below stack bottom (oops!)
+	SHR CX, 1					; Divide by 2 -- number of cells
+
+.LOOP:
+	LODSW
+	PUSH CX						; Clobbered
+	CALL DOT_INT
+	POP CX
+
+	MOV DX, ' '
+	WRITECOUT
+
+	LOOP .LOOP
+
+.DONE:
+	MOV DX, CRLF_MSG
+	WRITESOUT
+	
+	RSPOP SI
+	CLD
+	NEXT
+
+
+	DEFWORD_THREADED DUMP_IMAGE, 'DUMP-IMAGE'
+	DW LITERAL, F_WRITE			; ( *string len flags )
+	DW OPEN_FILE				; ( handle )
+	DW DUP						; ( handle handle )
+	DW LITERAL, 100h			; ( handle handle *start )
+	DW SWAP, HERE, GET			; ( handle *start handle *here )
+	DW SWAP, FILE_WRITE_RANGE	; ( handle )
+	DW CLOSE_FILE				; ( )
+	DW EXIT
