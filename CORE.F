@@ -1,6 +1,6 @@
 \ Core words for DOS FORTH
 
-: / /MOD SWAP DROP ;
-: A 10 ;
+: NIP SWAP DROP ;
 
-A . BYE
+DUMP-IMAGE FORTH.COM
+BYE

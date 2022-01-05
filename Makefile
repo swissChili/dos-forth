@@ -1,5 +1,11 @@
-FORTH.COM: FORTH.ASM DOS.ASM IOWORDS.ASM DICTNRY.ASM
+BASE.COM: FORTH.ASM DOS.ASM IOWORDS.ASM DICTNRY.ASM
 	nasm $< -fbin -o$@
 
-run: FORTH.COM
+FORTH.COM: BASE.COM CORE.F BUILD.BAT
+	dosbox BUILD.BAT
+
+run: BASE.COM
 	dosbox $^
+
+size: BASE.COM
+	@ls -al $^ | awk '{ print $$5 }'

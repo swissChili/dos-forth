@@ -264,13 +264,9 @@ WORD_MATCHES:
 	DW COMMA					; Add to HERE
 	DW EXIT
 
-.WORD_COMPILE_IMMED:			; ( cfa )
-	INCLUDE_STRING 'immediate bit set'
-	DW TYPE, CR
-	DW EXECUTE, EXIT
-
 .WORD_IMMED:					; ( cfa immediate? )
 	DW DROP						; ( cfa )
+.WORD_COMPILE_IMMED:
 	DW EXECUTE					; ( )
 	DW EXIT
 
