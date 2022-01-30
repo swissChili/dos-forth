@@ -1,0 +1,296 @@
+\documentclass[letterpaper,11pt,twocolumn]{article}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{textcomp}
+\usepackage{listings}
+\usepackage{glossaries}
+\usepackage{parskip}
+\usepackage{imakeidx}
+\usepackage{hyperref}
+
+\makeindex
+
+\title{DOS Forth Manual}
+\author{}
+\date{}
+
+\newcommand{\defword}[3]{\textbf{#1}\index{#1}\label{word:#1} #2 (#3)\quad}
+\newcommand{\then}{\text{-- }}
+\newenvironment{expl}{$\triangleright$}{}
+\newcommand{\wordref}[1]{\textbf{#1} \ref{word:#1}}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\section{Words}
+
+\subsection{Stack manipulation}
+
+\defword{swap}{}{a b \then b a}
+
+\defword{dup}{}{a \then a a}
+
+\defword{drop}{}{a \then}
+
+\defword{nip}{}{a b \then b}
+
+\defword{2dup}{}{a b \then a b a b}
+
+\subsection{Logic and arithmetic}
+
+\defword{+}{}{a b \then a+b}
+
+\defword{-}{}{a b \then a-b}
+
+\defword{*}{}{a b \then a$\times$b}
+
+\defword{/mod}{}{a b \then rem quot}
+\begin{expl}
+    Rem is the remainder, quot is the quotient of a/b.
+\end{expl}
+
+\defword{and}{}{a b \then a\&b}
+\begin{expl}
+    Bitwise and.
+\end{expl}
+
+\defword{xor}{}{a b \then a\^b}
+\begin{expl}
+    Bitwise exclusive or.
+\end{expl}
+
+\subsection{Input and output}
+
+\defword{key}{}{ \then char}
+\begin{expl}
+    Char is the next ASCII character from the input.
+\end{expl}
+
+\defword{word}{}{ \then address length}
+\begin{expl}
+    Reads the next whitespace-terminated word from the input. Address is the address of the first byte, length is the length in bytes. The maximum length is 32 bytes.
+    
+    Word uses a buffer which is reused every call. If you want the parsed string to persist after the next call you must copy it to your own buffer.
+\end{expl}
+
+\defword{number}{}{address length \then number unparsed}
+\begin{expl}
+    Parses the specified string as a base-10 number. Number is the parsed number as a cell, unparsed is the number of unparsed bytes, e.g. 0 if everything was parsed.
+\end{expl}
+
+\defword{.}{}{num \then}
+\begin{expl}
+    Writes number as a base-10 digit to the output.
+\end{expl}
+
+\defword{emit}{}{char \then}
+\begin{expl}
+    Writes the byte char to the output literally.
+\end{expl}
+
+\defword{cr}{}{ \then }
+\begin{expl}
+    Writes a carriate return followed by a newline to the output.
+\end{expl}
+
+\defword{space}{}{ \then }
+\begin{expl}
+    Writes an ASCII space to the output.
+\end{expl}
+
+\defword{type}{}{address length \then}
+\begin{expl}
+    Write the string of bytes starting at address of the specified length to the output. See also \wordref{word}.
+\end{expl}
+
+\defword{open-file-named}{}{flags address length \then handle}
+\begin{expl}
+    Opens the file specified by the string address and length with the given flags. \textit{TODO: document flags}. Handle is 0 if the file could not be opened.
+\end{expl}
+
+\defword{open-file}{name}{flags \then handle}
+\begin{expl}
+    Same as \wordref{open-file-named} but reads the name from the input at runtime.
+\end{expl}
+
+\defword{close-file}{}{handle \then}
+\begin{expl}
+    Closes the file specified by handle.
+\end{expl}
+
+\defword{f,}{}{cell handle \then}
+\begin{expl}
+    Writes cell (2 bytes) to the given file.
+\end{expl}
+
+\defword{fc,}{}{char handle \then}
+\begin{expl}
+    Writes the byte char to the given file.
+\end{expl}
+
+\defword{fwrite-range}{}{start-address end-address handle \then}
+\begin{expl}
+    Writes the memory range starting at start-address up to but not including end-address to the given file. 
+\end{expl}
+
+\subsection{Dictionary}
+
+\defword{find}{}{address length \then entry}
+\begin{expl}
+    Finds the dictionary entry with the name string specified by address and length in the dictionary. Entry is the address of the first byte of the dictionary entry. See also \wordref{>cfa}, \wordref{>dfa}. Entry is zero if a suitable entry cannot be found.
+\end{expl}
+
+\defword{@}{}{address \then value}
+\begin{expl}
+    Gets the cell starting at address from memory.
+\end{expl}
+
+\defword{!}{}{value address \then}
+\begin{expl}
+    Sets the cell at address to value.
+\end{expl}
+
+\defword{c@}{}{address \then char}
+\begin{expl}
+    Gets the byte at address from memory.
+\end{expl}
+
+\defword{c!}{}{char address \then}
+\begin{expl}
+    Sets the byte at address to char.
+\end{expl}
+
+\defword{>cfa}{}{entry \then cfa}
+\begin{expl}
+    Gets the code field address for the given dictionary entry.
+\end{expl}
+
+\defword{>dfa}{}{entry \then cfa}
+\begin{expl}
+    Gets the data field address for the given dictionary entry.
+\end{expl}
+
+\defword{cmove}{}{from to length \then}
+\begin{expl}
+    Copy the string of bytes length long starting at from to to. 
+\end{expl}
+
+\defword{round-even}{}{number \then even}
+\begin{expl}
+    Rounds number up until it is even. If it is already even returns it as is.
+\end{expl}
+
+\defword{cmove,}{}{from length \then}
+\begin{expl}
+    Moves the string of bytes length long starting at from to the top of the dictionary and offsets the here pointer.
+\end{expl}
+
+\defword{create}{name}{ \then}
+\begin{expl}
+    Creates a dictionary entry. Name is read from the input at runtime. 
+\end{expl}
+
+\defword{,}{}{value \then}
+\begin{expl}
+    Writes the cell value to the top of the stack, adding 2 to the here pointer.
+\end{expl}
+
+\defword{c,}{}{char \then}
+\begin{expl}
+    Writes the byte char to the top of the stack, adding 1 to the here pointer.
+\end{expl}
+
+\defword{[}{}{ \then}
+\begin{expl}
+    Switches to interpret mode.
+\end{expl}
+
+\defword{]}{}{ \then}
+\begin{expl}
+    Immediately switches to compile mode.
+\end{expl}
+
+\defword{immediate}{}{ \then}
+\begin{expl}
+    Immediately toggles if the most recently defined dictionary word is immediate.
+\end{expl}
+
+\defword{hidden}{}{ \then}
+\begin{expl}
+    Toggles if the most recently defined dictionary word is hidden.
+\end{expl}
+
+\defword{hide}{name}{ \then}
+\begin{expl}
+    Reads a word from the input at runtime, looks it up in the dictionary, and toggles if it is hidden.
+\end{expl}
+
+\defword{tick}{name}{ \then cfa}
+\begin{expl}
+    Reads a word from the input at runtime, looks it up in the dictionary, and returns its code field address.
+\end{expl}
+
+\defword{word-type}{}{entry \then type}
+\begin{expl}
+    Returns the type of the word starting at entry. 0 if immediate, 1 if normal.
+\end{expl}
+
+\defword{interpret}{name}{ \then ?}
+\begin{expl}
+    Reads a word from the input at runtime and interprets it.
+\end{expl}
+
+\defword{quit}{}{ \then ?}
+\begin{expl}
+    Runs \wordref{interpret} repeatedly.
+\end{expl}
+
+\defword{:}{name}{ \then }
+\begin{expl}
+    Begins defining a word with the specified name. Switches to compiling state.
+\end{expl}
+
+\defword{;}{}{ \then }
+\begin{expl}
+    Finishes defining a word. Switches back to interpreting state.
+\end{expl}
+
+\defword{entry->name}{}{entry \then address length}
+\begin{expl}
+    Finds the name of the dictionary entry starting at entry.
+\end{expl}
+
+\defword{words}{}{ \then }
+\begin{expl}
+    Writes a list of the currently defined non-hidden words to the output.
+\end{expl}
+
+\defword{.s}{}{ \then }
+\begin{expl}
+    Displays the current content of the stack from bottom to top.
+\end{expl}
+
+\subsection{Images and executables}
+
+\defword{dump-image}{name}{ \then }
+\begin{expl}
+    Dumps the current Forth image in .COM format to the file with the specified name. This saves the entire contents of the dictionary, but not the stack.
+\end{expl}
+
+\section{License}
+
+Copyright \copyright{} 2022 \href{https://swisschili.sh}{swissChili}. This document is released under the terms of the \href{https://www.gnu.org/licenses/fdl-1.3.html}{GNU Free Documentation License}.
+
+\printindex
+\end{document}

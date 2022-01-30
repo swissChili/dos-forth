@@ -85,6 +85,14 @@ WORD_MATCHES:
 	NEXT
 
 
+	;; ( char address -- )
+	DEFWORD_RAW SETCHAR, 'C!'
+	POP BX
+	POP AX
+	MOV BYTE [BX], AL
+	NEXT
+
+
 	;; Code field address
 	DEFWORD_RAW CFA, '>CFA'
 	POP BX
@@ -128,6 +136,7 @@ WORD_MATCHES:
 	NEXT
 
 
+	;; ( start length -- )
 	DEFWORD_RAW CMOVE_HERE, 'CMOVE,'
 	POP CX
 	RSPUSH SI

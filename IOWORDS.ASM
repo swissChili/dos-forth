@@ -207,7 +207,7 @@ DOT_INT:
 	RET
 
 
-	;; ( flags *start len )
+	;; ( flags *start len -- handle )
 	DEFWORD_RAW OPEN_FILE_NAMED, 'OPEN-FILE-NAMED'
 	POP CX						; Length
 	POP BX						; Start
