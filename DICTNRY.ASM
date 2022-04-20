@@ -26,9 +26,9 @@
 	NEXT
 
 
-	;; BX - Word
+	;; BX - Word entry on dictionary
 	;; CX - Length
-	;; DI - Name
+	;; DI - Name to compare to
 	;; 
 	;; All three parameter registers may be clobbered.
 	;; 
@@ -104,7 +104,6 @@ WORD_MATCHES:
 	ADD BX, CX					; Code field address
 	ADD BX, 2					; 1 to round up, 1 to skip length
 	AND BX, (~1)				; Zero the last bit
-
 
 	PUSH BX
 	NEXT
@@ -188,7 +187,7 @@ WORD_MATCHES:
 	NEXT
 
 
-	DEFWORD_RAW_IMMEDIATE IMMEDIATE, 'IMMEDIATE'
+	DEFWORD_RAW_IMMEDIATE IMMEDIATE, 'IMMED'
 	MOV BX, [VAR_LATEST]
 	XOR BYTE [BX + 2], IMMEDIATE_BIT
 	NEXT
@@ -265,6 +264,7 @@ WORD_MATCHES:
 	DW STATE, GET				; ( cfa immediate? interpreting? )
 	;; In either case evaluate
 	DW ZEROBRANCH				; ( cfa immediate? )
+	;; We are currently interpreting:
 	RELATIVE_ADDRESS .WORD_IMMED
 	DW ZEROBRANCH				; ( cfa )
 	RELATIVE_ADDRESS .WORD_COMPILE_IMMED
@@ -275,12 +275,15 @@ WORD_MATCHES:
 
 .WORD_IMMED:					; ( cfa immediate? )
 	DW DROP						; ( cfa )
-.WORD_COMPILE_IMMED:
+.WORD_COMPILE_IMMED:			; ( cfa )
 	DW EXECUTE					; ( )
 	DW EXIT
 
 .NUM:							; ( addr len 0 )
 	DW DROP						; ( addr len )
+	INCLUDE_STRING 'Parsing as a number'
+	DW TYPE, CR
+	DW _2DUP, TYPE, CR
 	DW NUMBER					; ( number unparsed )
 	DW ZEROBRANCH				; ( number )
 	RELATIVE_ADDRESS .NUMOK

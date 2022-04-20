@@ -305,7 +305,7 @@ EXIT:
 	
 ;;; LATE-INIT VARIABLES ;;;
 	DEFVAR STATE, 'STATE'
-	DW 0						; Interpret
+	DW 0						; Interpret; ( cfa )
 
 	
 	DEFVAR HERE, 'HERE'

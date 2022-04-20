@@ -1,0 +1,14 @@
+!! BUGS !!
+
+- For some reason, if the word `IMMEDIATE' is defined in DICTNRY.ASM,
+  it shows up in `WORDS' but cannot actually be invoked. If it is
+  shortened to `IMMED' it works fine, same if it's called
+  `IMMEDIAT'. However, `IMMEDIATX' doesn't work. But if it's named
+  something random like `123456789' it works. Also, other words 9
+  characters long work fine! This is really weird. Moving the
+  definition of `IMMEDIATE' to a different location in the binary
+  (padding it from the start) doesn't solve the problem.
+
+  Update: This seems to affect a whole lot of words, including
+  `>CFA'. Can't seem to find a pattern between them, e.g. `>DFA' works
+  fine.
