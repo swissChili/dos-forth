@@ -10,7 +10,9 @@
 	;; BX and DI are clobbered
 	PUSH BX
 	PUSH DI
+	PUSH CX
 	CALL WORD_MATCHES
+	POP CX
 	POP DI
 	POP BX
 
@@ -187,7 +189,7 @@ WORD_MATCHES:
 	NEXT
 
 
-	DEFWORD_RAW_IMMEDIATE IMMEDIATE, 'IMMED'
+	DEFWORD_RAW_IMMEDIATE IMMEDIATE, 'IMMEDIATE'
 	MOV BX, [VAR_LATEST]
 	XOR BYTE [BX + 2], IMMEDIATE_BIT
 	NEXT
@@ -281,9 +283,6 @@ WORD_MATCHES:
 
 .NUM:							; ( addr len 0 )
 	DW DROP						; ( addr len )
-	INCLUDE_STRING 'Parsing as a number'
-	DW TYPE, CR
-	DW _2DUP, TYPE, CR
 	DW NUMBER					; ( number unparsed )
 	DW ZEROBRANCH				; ( number )
 	RELATIVE_ADDRESS .NUMOK

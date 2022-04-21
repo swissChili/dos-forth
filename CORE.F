@@ -4,21 +4,21 @@
 : / /MOD NIP ;
 : MOD /MOD DROP ;
 
-: LITERAL IMMED ' LIT , , ;
-: [COMPILE] IMMED WORD FIND >CFA , ;
-: RECURSE IMMED LATEST , >CFA , ;
+: LITERAL IMMEDIATE ' LIT , , ;
+: [COMPILE] IMMEDIATE WORD FIND >CFA , ;
+: RECURSE IMMEDIATE LATEST , >CFA , ;
 
 \ Control structures
 
 \ cond IF <*b0> true ELSE false THEN rest
-: IF ( -- *then ) IMMED ' 0BRANCH , HERE @ 0 , ;
+: IF ( -- *then ) IMMEDIATE ' 0BRANCH , HERE @ 0 , ;
 
-: THEN ( *then -- *then ) IMMED
+: THEN ( *then -- *then ) IMMEDIATE
   DUP HERE @ SWAP ( *then *then *here )
   SWAP - ( *then *here-*then )
   SWAP ! ;
 
-: ELSE ( *then -- *here ) IMMED
+: ELSE ( *then -- *here ) IMMEDIATE
   ' BRANCH ,
   HERE @ ( *then *ph )
   0 ,
@@ -28,5 +28,8 @@
   SWAP - ( *ph *then diff )
   SWAP ! ( *ph ) ;
 
+IMG-DUMPED
+
 DUMP-IMAGE FORTH.COM
+
 BYE
