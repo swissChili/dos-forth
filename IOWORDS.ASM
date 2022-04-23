@@ -4,9 +4,7 @@
 
 ;;; INPUT & OUTPUT ROUTINES ;;;
 	;; Stack of input file pointers
-	DEFVAR INP_S0, 'INP-S0'
-KEY_INP_STACK:
-	TIMES 32 DW 0
+KEY_INP_STACK TIMES 32 DW 0
 
 	;; Top of the stack
 	DEFVAR INP_SP, 'INP-SP'
@@ -58,11 +56,7 @@ KEY_INP_BUF:
 	PUSH AX
 	NEXT
 
-KEY_ERR_MSG DOS_STRING 'CF set'
-KEY_END_MSG DOS_STRING 'EOF'
-KEY_NO_ERR_MSG DOS_STRING 'No error'
-KEY_GOT_CHAR_MSG DOS_STRING ' Read'
-	
+
 	;; This routine returns the key in AL, but Forth wants it on the
 	;; stack, so we have a helper function.
 	;; 
@@ -87,9 +81,8 @@ READ_KEY:
 	RET
 
 .READ_ERR:
-	MOV BX, [KEY_INP_STACKP]
+	;; BX already holds the file handle
 	CLOSEF						; Close the input stream
-	MOV [BX], WORD 0			; Reset **inp-sp 0
 	MOV BX, [KEY_INP_STACKP]
 	SUB BX, 2					; Pop off input stack
 	MOV [KEY_INP_STACKP], BX
