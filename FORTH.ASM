@@ -130,6 +130,19 @@ CONST_%1:
 	%ENDMACRO
 
 
+	%MACRO DOS_STRING 1
+	DB %1, 0Dh, 0Ah, '$'
+	%ENDMACRO
+
+
+	;; Move the address of the PAD into %1
+	;; Pad starts at 256 bytes above LATEST
+	%MACRO GET_PAD 1
+	MOV %1, [VAR_LATEST]
+	ADD %1, 256
+	%ENDMACRO
+
+
 ;;; PROGRAM CODE ;;;
 
 _START:
@@ -147,7 +160,7 @@ _START:
 	;; DO COLon definition -- Codeword for indirect threaded code
 	;; ax: indirect execution address
 DOCOL:	
-	RSPUSH si
+	RSPUSH SI
 	ADD AX, WORDSZ				; Point to the first word address
 	MOV SI, AX					; Enter the function body (set si)
 	NEXT
@@ -221,10 +234,43 @@ EXIT:
 	NEXT
 
 
+	;; a b -- a b a
+	DEFWORD_RAW OVER, 'OVER'
+	POP BX
+	POP AX
+	PUSH AX
+	PUSH BX
+	PUSH AX
+	NEXT
+
+
 	DEFWORD_RAW DUP, 'DUP'
 	;; This is stupid, [SP] is invalid
 	POP AX
 	PUSH AX
+	PUSH AX
+	NEXT
+
+
+	DEFWORD_RAW TO_RET, '>R'
+	POP AX
+	RSPUSH AX
+	NEXT
+
+
+	DEFWORD_RAW FROM_RET, 'R>'
+	RSPOP AX
+	PUSH AX
+	NEXT
+
+
+	;; ( a b c -- b c a )
+	DEFWORD_RAW ROT, 'ROT'
+	POP CX
+	POP BX
+	POP AX
+	PUSH BX
+	PUSH CX
 	PUSH AX
 	NEXT
 

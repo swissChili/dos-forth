@@ -393,9 +393,17 @@ WORD_MATCHES:
 	NEXT
 
 
+	;; DUMP-IMAGE IMAGE.COM
+	;;
+	;; Note: The stack is getting a bit deep here
 	DEFWORD_THREADED DUMP_IMAGE, 'DUMP-IMAGE'
-	DW LITERAL, F_WRITE			; ( *string len flags )
-	DW OPEN_FILE				; ( handle )
+	DW LITERAL, F_WRITE			; ( flags )
+	DW DUP, TO_RET				; ( flags ) [ flags ]
+	DW _WORD					; ( flags *name len ) [ flags ]
+	DW _2DUP					; ( flags *name len *name len ) [ flags ]
+	DW FROM_RET, ROT, ROT		; ( flags *name len flags *name len )
+	DW CREATE_FILE_NAMED		; ( flags *name len )
+	DW OPEN_FILE_NAMED			; ( handle )
 	DW DUP						; ( handle handle )
 	DW LITERAL, 100h			; ( handle handle *start )
 	DW SWAP, HERE, GET			; ( handle *start handle *here )

@@ -3,22 +3,99 @@
 
 
 ;;; INPUT & OUTPUT ROUTINES ;;;
+	;; Stack of input file pointers
+	DEFVAR INP_S0, 'INP-S0'
+KEY_INP_STACK:
+	TIMES 32 DW 0
+
+	;; Top of the stack
+	DEFVAR INP_SP, 'INP-SP'
+KEY_INP_STACKP:
+	DW KEY_INP_STACK
+
+
+	;; ( handle -- )
+	DEFWORD_RAW SEEK_START, 'SEEK-START'
+	XOR AL, AL
+	POP BX
+	XOR CX, CX
+	XOR DX, DX
+	SEEKF
+	NEXT
+
+
+	;; ( *str len -- )
+	;; Opens the file specified by *str and len for reading and adds it
+	;; to the input stack.
+	DEFWORD_THREADED INCLUDED, 'INCLUDED'
+	DW TO_RET, TO_RET			; ( ) [ len *str ]
+	DW LITERAL, F_READ			; ( flags )
+	DW FROM_RET, FROM_RET		; ( flags *str len ) [ ]
+	DW OPEN_FILE_NAMED			; ( handle )
+	DW DUP, SEEK_START			; ( handle )
+	DW INP_SP					; ( handle *inp-sp )
+	DW GET, ADD2				; ( handle inp-sp+2 )
+	DW SWAP, OVER				; ( inp-sp+2 handle inp-sp+2 )
+	DW SET						; ( inp-sp+2 )
+	DW INP_SP					; ( inp-sp+2 *inp-sp )
+	DW SET, EXIT				; ( )
+
+
+	DEFWORD_THREADED INCLUDE, 'INCLUDE'
+	DW _WORD, INCLUDED, EXIT
+	
+
+KEY_INP_BUF:
+	DW 0
+	
 	;; Read a key from the input. If STDIN is blank wait for a key
 	;; press.
 	;;
 	;; TODO: Keep an internal buffer until RETURN is pressed, allow
 	;; some line editing.
-	;;
-	;; Actually, that could be implemented in Forth for simplicity.
 	DEFWORD_RAW KEY, 'KEY'
 	CALL READ_KEY
 	PUSH AX
 	NEXT
+
+KEY_ERR_MSG DOS_STRING 'CF set'
+KEY_END_MSG DOS_STRING 'EOF'
+KEY_NO_ERR_MSG DOS_STRING 'No error'
+KEY_GOT_CHAR_MSG DOS_STRING ' Read'
 	
 	;; This routine returns the key in AL, but Forth wants it on the
 	;; stack, so we have a helper function.
+	;; 
+	;; Clobbers: BX, CX
+	;; Return: AX
 READ_KEY:
-	;; Check if line buffer is empty
+	MOV BX, [KEY_INP_STACKP]	; Address of current input file handle
+	MOV BX, [BX]
+	TEST BX, BX
+	JZ .READ_STDIN				; If the file handle is 0
+
+	MOV CX, 1					; We're reading 1 byte from a file
+	MOV DX, KEY_INP_BUF			; Write to our temporary buffer
+	READF
+
+	JC .READ_ERR				; CF - general read error
+	TEST AX, AX
+	JZ .READ_ERR				; AX=0 - at EOF
+
+	MOV AX, [KEY_INP_BUF]
+
+	RET
+
+.READ_ERR:
+	MOV BX, [KEY_INP_STACKP]
+	CLOSEF						; Close the input stream
+	MOV [BX], WORD 0			; Reset **inp-sp 0
+	MOV BX, [KEY_INP_STACKP]
+	SUB BX, 2					; Pop off input stack
+	MOV [KEY_INP_STACKP], BX
+	JMP READ_KEY				; Re-try reading the key
+	
+.READ_STDIN:
 	READCIN
 	XOR AH, AH 					; We don't care about the scan code
 	RET
@@ -169,6 +246,8 @@ TYPE_STRING:
 	CALL DOT_INT
 	NEXT
 
+	;; AX - number to print
+	;; Clobbers: DX, BX, CX
 DOT_INT:	
 	TEST AX, AX
 	JNZ .START
@@ -207,17 +286,54 @@ DOT_INT:
 	RET
 
 
+	;; Write a string to the PAD and 0-terminate it. For use with DOS
+	;; I/O words that require ASCIZ strings.
+	;;
+	;; CX - string length
+	;; BX - start of string
+	;; Clobbers: none
+	;; Returns: BX - address of temporary string
+MAKE_STRING_ASCIZ:
+	PUSH SI
+	PUSH DI
+	PUSH CX
+
+	MOV SI, BX
+	GET_PAD DI
+	PUSH DI						; Save start of temp string
+	REP MOVSB					; Copy bytes
+	MOV BYTE [DI], 0			; 0-terminate
+	POP BX						; Return start in BX
+
+	POP CX
+	POP DI
+	POP SI
+
+	RET
+
+	;; ( flags *start len -- )
+	DEFWORD_RAW CREATE_FILE_NAMED, 'CREATE-FILE-NAMED'
+	POP CX						; Len
+	POP BX						; Start
+	CALL MAKE_STRING_ASCIZ
+	POP CX						; Flags
+	MOV DX, BX
+	CREATF
+	NEXT
+
+
+	;; ( flags -- ) CREATE-FILE <file-name>
+	DEFWORD_THREADED CREATE_FILE, 'CREATE-FILE'
+	DW _WORD, CREATE_FILE_NAMED, EXIT
+
+
 	;; ( flags *start len -- handle )
 	DEFWORD_RAW OPEN_FILE_NAMED, 'OPEN-FILE-NAMED'
 	POP CX						; Length
 	POP BX						; Start
-	MOV DX, BX
-	ADD BX, CX
-	MOV BYTE [BX], 0
-	POP CX						; Flags
-	CREATF
-
-	MOV AX, CX					; Flags
+	CALL MAKE_STRING_ASCIZ
+	MOV DX, BX					; ASCIZ string in DX
+	POP AX						; Flags
 	OPENF
 
 	JC FILE_WRITE_ERROR

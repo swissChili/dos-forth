@@ -9,3 +9,6 @@ run: BASE.COM
 
 size: BASE.COM
 	@ls -al $^ | awk '{ print $$5 }'
+
+list-words:
+	@rg '^(\s*)DEF(VAR|WORD_|CONST)'
